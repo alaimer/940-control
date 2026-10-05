@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "kind": "version-control",
+  "offlineGraceDays": 3,
+  "maintenance": { "enabled": false, "message": "", "until": null },
+  "platforms": {
+    "android": { "latest": "1.13.2", "minimum": "1.13.2", "overrides": {} },
+    "windows": { "latest": "1.13.2", "minimum": "1.13.2", "overrides": {} }
+  }
+}

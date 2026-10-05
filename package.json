@@ -1,0 +1,12 @@
+{
+  "name": "940-control",
+  "private": true,
+  "version": "0.1.0",
+  "description": "940 version-control manifest: schema, validation, signing and publishing (no runtime dependencies)",
+  "scripts": {
+    "validate": "node scripts/validate.js",
+    "scan": "node scripts/scan-secrets.js",
+    "test": "node --test tests/control.test.js"
+  },
+  "engines": { "node": ">=20" }
+}

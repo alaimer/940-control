@@ -1,0 +1,66 @@
+name: publish
+# يوقّع control.json وينشر manifest.json إلى فرع gh-pages (الذي يخدمه GitHub Pages).
+# يعمل فقط عند تعديل control.json على main أو يدويًا، ويمرّ عبر بيئة «publish» (يجب ضبطها بمراجِع موافقة هو المالك).
+# المفتاح الخاص k1 سرّ في تلك البيئة (CONTROL_K1_PRIVATE) ولا يوجد في المستودع.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['control.json']
+concurrency:
+  group: publish-manifest
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  publish:
+    if: github.actor == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: publish
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: main, fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Checks (no secrets used)
+        run: |
+          node scripts/scan-secrets.js
+          node scripts/validate.js
+          node --test tests/
+      - name: Next sequence (previous published + 1)
+        id: seq
+        run: |
+          prev=0
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+            git fetch -q origin gh-pages
+            if git cat-file -e origin/gh-pages:manifest.json 2>/dev/null; then
+              prev=$(git show origin/gh-pages:manifest.json | node -e "const e=JSON.parse(require('fs').readFileSync(0,'utf8'));const p=JSON.parse(Buffer.from(e.payload.replace(/-/g,'+').replace(/_/g,'/'),'base64').toString());process.stdout.write(String(Number.isInteger(p.sequence)?p.sequence:0))")
+            fi
+          fi
+          echo "prev=$prev" >> "$GITHUB_OUTPUT"
+          echo "next=$((prev+1))" >> "$GITHUB_OUTPUT"
+      - name: Sign
+        env:
+          CONTROL_PRIVATE_KEY: ${{ secrets.CONTROL_K1_PRIVATE }}
+        run: node scripts/sign.js --kid k1 --sequence "${{ steps.seq.outputs.next }}" --out dist/manifest.json
+      - name: Verify signed output with public keys only
+        run: node scripts/verify.js dist/manifest.json --min-sequence "${{ steps.seq.outputs.next }}"
+      - name: Publish to gh-pages
+        run: |
+          set -e
+          git config user.name "940-control-bot"
+          git config user.email "940-control-bot@users.noreply.github.com"
+          rm -rf /tmp/pub && mkdir /tmp/pub
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+            git worktree add /tmp/pub origin/gh-pages --detach
+          else
+            git worktree add --detach /tmp/pub HEAD
+            (cd /tmp/pub && git checkout --orphan gh-pages && git rm -rf . >/dev/null 2>&1 || true)
+          fi
+          cd /tmp/pub
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp "$GITHUB_WORKSPACE/dist/manifest.json" manifest.json
+          touch .nojekyll
+          git add -A
+          git commit -m "manifest sequence ${{ steps.seq.outputs.next }} (signed)"
+          git push origin HEAD:gh-pages

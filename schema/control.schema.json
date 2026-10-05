@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "وصف هيكلي لـcontrol.json. المرجع الملزِم هو scripts/lib.js (validateControl) ويضيف قواعد عابرة للحقول: minimum<=latest، منع إيقاف/إجبار أحدث إصدار، قائمة الروابط البيضاء، حدّ until، إلخ.",
+  "title": "940 control.json (المصدر الذي يحرره المالك)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "maintenance", "platforms"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "version-control" },
+    "offlineGraceDays": { "type": "integer", "minimum": 1, "maximum": 7, "default": 3 },
+    "maintenance": {
+      "type": "object", "additionalProperties": false, "required": ["enabled"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "message": { "type": "string", "maxLength": 500 },
+        "until": { "type": ["string", "null"], "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$" }
+      }
+    },
+    "platforms": {
+      "type": "object", "additionalProperties": false, "required": ["android", "windows"],
+      "properties": { "android": { "$ref": "#/$defs/platform" }, "windows": { "$ref": "#/$defs/platform" } }
+    }
+  },
+  "$defs": {
+    "semver": { "type": "string", "pattern": "^(0|[1-9][0-9]{0,8})\\.(0|[1-9][0-9]{0,8})\\.(0|[1-9][0-9]{0,8})$" },
+    "platform": {
+      "type": "object", "additionalProperties": false, "required": ["latest", "minimum"],
+      "properties": {
+        "latest": { "$ref": "#/$defs/semver" },
+        "minimum": { "$ref": "#/$defs/semver" },
+        "download": {
+          "type": "object", "additionalProperties": false, "required": ["url"],
+          "properties": { "url": { "type": "string", "maxLength": 400 }, "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" } }
+        },
+        "overrides": {
+          "type": "object", "propertyNames": { "$ref": "#/$defs/semver" },
+          "additionalProperties": {
+            "type": "object", "additionalProperties": false, "required": ["status"],
+            "properties": { "status": { "enum": ["active", "update_available", "force_update", "blocked"] }, "message": { "type": "string", "maxLength": 500 } }
+          }
+        }
+      }
+    }
+  }
+}

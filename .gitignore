@@ -1,0 +1,12 @@
+# المفاتيح الخاصة وأي مادة سرية ممنوعة تمامًا في هذا المستودع
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.private.*
+.env
+.env.*
+dist/
+node_modules/
